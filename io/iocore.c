@@ -217,6 +217,12 @@ void iocore_reset(void) {
 			iocore.f.outfn[i+0x38] = tram_knj_o;
 		}
 	}
+	/* EMM (expansion memory) at ports 0x0d00-0x0dff: an
+	   original-X1 device (the compatible IPL boots from it),
+	   so it is installed for every ROM type. M5 patch,
+	   TapeOS project; implementation in memio.c. */
+	iocore.f.inpfn[0x0d] = emm_i;
+	iocore.f.outfn[0x0d] = emm_o;
 #if defined(SUPPORT_TURBOZ)
 	if (pccore.ROM_TYPE >= 3) {
 		iocore.f.inpfn[0x10] = palette_i;

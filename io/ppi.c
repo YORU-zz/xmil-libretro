@@ -31,7 +31,7 @@ static REG8 getportb(void) {
 
 	iocore.s.ppib = (UINT8)((ppib & (~0x40)) | 0x01);
 
-	/* ret |= cmt_read(); */
+	ret |= cmt_read();		/* TapeOS M3 patch */
 
 #if defined(MAINFRAMES_OLD)
 	clock = CPU_CLOCKCOUNT - iocore.e.framestartclock;
@@ -55,7 +55,7 @@ static void setportc(REG8 dat) {
 
 	modify = ppi.portc ^ dat;
 	ppi.portc = dat;
-	/* cmt_write((REG8)(dat & 1)); */
+	cmt_write((REG8)(dat & 1));	/* TapeOS M3 patch */
 	if ((modify & 0x20) && (!(dat & 0x20))) {
 		iocore.s.mode = 1;
 		/* TRACEOUT(("iocore.s.mode = 1")); */

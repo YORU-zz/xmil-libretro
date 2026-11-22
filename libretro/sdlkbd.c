@@ -38,6 +38,7 @@ static const struct TagSdlKey s_table[] =
 	{RETROK_u,			0x16},	{RETROK_i,			0x17},
 
 	{RETROK_o,			0x18},	{RETROK_p,			0x19},
+	{RETROK_AT,			0x1a},	{RETROK_LEFTBRACKET,	0x1b},
 	{RETROK_RETURN,		0x1c},	{RETROK_a,			0x1d},
 	{RETROK_s,			0x1e},	{RETROK_d,			0x1f},
 
@@ -45,13 +46,14 @@ static const struct TagSdlKey s_table[] =
 	{RETROK_h,			0x22},	{RETROK_j,			0x23},
 	{RETROK_k,			0x24},	{RETROK_l,			0x25},
 
-								{RETROK_z,			0x29},
+				{RETROK_SEMICOLON,	0x26},	{RETROK_COLON,		0x27},
+	{RETROK_RIGHTBRACKET,	0x28},	{RETROK_z,			0x29},
 	{RETROK_x,			0x2a},	{RETROK_c,			0x2b},
 	{RETROK_v,			0x2c},	{RETROK_b,			0x2d},
 	{RETROK_n,			0x2e},	{RETROK_m,			0x2f},
 
 	{RETROK_COMMA,		0x30},	{RETROK_PERIOD,		0x31},
-	{RETROK_SLASH,		0x32},
+	{RETROK_SLASH,		0x32},	{RETROK_UNDERSCORE,	0x33},
 	{RETROK_SPACE,		0x34},
 	{RETROK_PAGEUP,		0x36},	{RETROK_PAGEDOWN,		0x37},
 
