@@ -1,0 +1,61 @@
+NOTICE — パッチ版 xmil（TapeOS 用）暫定版 2026-11-22
+
+本リポジトリは libretro/xmil-libretro のフォークに、当プロジェクト
+（OUROBO/ROS 再現プロジェクト、P2）のパッチを適用したものです。
+構成要素ごとの権利とライセンスは以下のとおりです。
+
+======================================================================
+1. xmil 本体（コア）
+======================================================================
+Copyright © 2015 Yui
+BSD 様式ライセンス（3 条項）。全文はリポジトリ同梱の LICENSE ファイルを
+参照してください。改変版の配布は、著作権表示とライセンス文の保持を
+条件に認められています。
+上流: https://github.com/libretro/xmil-libretro
+本フォークのパッチ基点コミット: 3106aa54ffb244cca4019a6e95dacaa698781bc3
+
+======================================================================
+2. 当プロジェクトのパッチ（ブランチ tapeos-patch-20261122 の差分）
+======================================================================
+MIT License
+
+Copyright (c) 2026 asa2yoru
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+対象ファイル: io/cmt.c, io/iocore.c, io/memio.c, io/memio.h, io/ppi.c,
+libretro/sdlkbd.c、および patches/ 以下のパッチファイル、README.MD の
+冒頭セクション、rom/README.md、VERSION、NOTICE（本ファイル）。
+
+======================================================================
+3. 同梱 IPL ROM（rom/X1_compatible_rom.bin）
+======================================================================
+X1 compatible ROM ver 0.7.3
+作者: meister68k 氏（Meister）
+ライセンス: CC0 1.0 Universal（パブリックドメイン相当）
+実機の IPL とは無関係にフルスクラッチで実装された互換 IPL ROM です。
+本リポジトリでは起動用にそのまま同梱しています。
+
+======================================================================
+4. 起動に別途必要なもの（本リポジトリに含まれないもの）
+======================================================================
+- FNT0808.X1（8×8 フォント）: meister68k 氏の X1 互換フォント配布に
+  含まれます。フォントデータは美咲フォント（Num Kadoma 氏）由来です。
+- TapeOS ディスクイメージ: 別リポジトリ YORU-zz/tapeos で配布します
+  （本リポジトリには TapeOS のソース／イメージを含みません）。
