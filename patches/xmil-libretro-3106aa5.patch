@@ -1,8 +1,8 @@
 diff --git a/io/cmt.c b/io/cmt.c
-index 306e3c8..8b780c5 100644
+index 306e3c8..bc430ac 100644
 --- a/io/cmt.c
 +++ b/io/cmt.c
-@@ -1,42 +1,455 @@
+@@ -1,42 +1,757 @@
  #include	"compiler.h"
  #include	"pccore.h"
  #include	"iocore.h"
@@ -113,6 +113,188 @@ index 306e3c8..8b780c5 100644
 +	cmt_bits_cap = 0;
 +}
 +
++/* ==== TapeOS tape-interop patch: clean PCM WAV tapes ====
++ *
++ * The .cmt packed-bitstream format above is an invention of
++ * this project (the stock core had no CMT input at all), so
++ * tapes could neither leave nor enter from the outside
++ * world, where the circulating form is WAV audio.  When the
++ * XMIL_TAPE path ends in ".wav" (any case), the deck now
++ * loads a clean PCM WAV instead: RIFF/WAVE, PCM (format 1),
++ * 8- or 16-bit samples, mono or stereo (channel 0 is used),
++ * any sample rate.  The waveform is digitised with ONE
++ * fixed threshold (the midpoint of the sample range: 0 for
++ * 16-bit signed, 128 for 8-bit unsigned) and then decoded
++ * into the same internal bitstream with the recorder's own
++ * rule: every bit cell starts with a rising edge and the
++ * bit is the level at the speed's sample point (185 us
++ * classic, 46 us at 4800 bps) after that edge.  Playback
++ * then synthesises the pulses from the bits with the
++ * timing table above, exactly as for .cmt, so WAV playback
++ * timing is re-normalised to the deck's canonical timings.
++ *
++ * Recording to a ".wav" path (see cmt_rec_savefile) writes
++ * the canonical form: 48000 Hz, 16-bit signed mono, square
++ * wave at +/-12000, phases from the same timing table
++ * (phase sample counts use cumulative remainder carrying,
++ * shared with the host tool wavclean - see tapeos/tools/
++ * wavclean.py, which renders bit-identical files).
++ *
++ * Deliberately NOT in the core: DC offset removal, level
++ * normalisation, polarity correction, hysteresis.  Dirty
++ * WAVs are the host-side wavclean tool's job; the core
++ * stays deterministic and dumb, per the design agreement
++ * (tape-interop.md).  The .cmt path below is unchanged and
++ * remains the regression reference.
++ */
++
++static BOOL cmt_path_is_wav(const char *path) {
++
++	size_t len;
++
++	if (path == NULL) {
++		return(FALSE);
++	}
++	len = strlen(path);
++	if (len < 4) {
++		return(FALSE);
++	}
++	path += len - 4;
++	return((path[0] == '.') &&
++			((path[1] == 'w') || (path[1] == 'W')) &&
++			((path[2] == 'a') || (path[2] == 'A')) &&
++			((path[3] == 'v') || (path[3] == 'V')));
++}
++
++static UINT cmt_rd16le(const UINT8 *p) {
++
++	return((UINT)(p[0] | (p[1] << 8)));
++}
++
++static UINT32 cmt_rd32le(const UINT8 *p) {
++
++	return((UINT32)p[0] | ((UINT32)p[1] << 8) |
++			((UINT32)p[2] << 16) | ((UINT32)p[3] << 24));
++}
++
++/* digitised level (0/1) of frame `idx`, channel 0 */
++static int cmt_wav_level(const UINT8 *data, UINT idx,
++		UINT channels, UINT bits) {
++
++	if (bits == 16) {
++		const UINT8 *p = data + ((size_t)idx * channels * 2);
++		int v;
++
++		v = (int)(p[0] | (p[1] << 8));
++		if (v >= 32768) {
++			v -= 65536;
++		}
++		return(v > 0);
++	}
++	else {
++		return(data[(size_t)idx * channels] > 127);
++	}
++}
++
++static void cmt_wav_decode(const UINT8 *buf, UINT size) {
++
++	const UINT8 *fmtp;
++	const UINT8 *datap;
++	UINT32 datalen;
++	UINT pos;
++	UINT format;
++	UINT channels;
++	UINT bits;
++	UINT32 rate;
++	UINT nframes;
++	UINT off;
++	UINT i;
++	UINT count;
++	UINT idx;
++	int prev;
++	int cur;
++
++	if ((size < 44) || (memcmp(buf, "RIFF", 4) != 0) ||
++			(memcmp(buf + 8, "WAVE", 4) != 0)) {
++		return;
++	}
++	fmtp = NULL;
++	datap = NULL;
++	datalen = 0;
++	pos = 12;
++	while (pos + 8 <= size) {
++		UINT32 clen;
++
++		clen = cmt_rd32le(buf + pos + 4);
++		if (clen > size - (pos + 8)) {
++			clen = size - (pos + 8);
++		}
++		if ((memcmp(buf + pos, "fmt ", 4) == 0) &&
++				(clen >= 16)) {
++			fmtp = buf + pos + 8;
++		}
++		else if (memcmp(buf + pos, "data", 4) == 0) {
++			datap = buf + pos + 8;
++			datalen = clen;
++		}
++		pos += 8 + clen + (clen & 1);
++	}
++	if ((fmtp == NULL) || (datap == NULL)) {
++		return;
++	}
++	format = cmt_rd16le(fmtp);
++	channels = cmt_rd16le(fmtp + 2);
++	rate = cmt_rd32le(fmtp + 4);
++	bits = cmt_rd16le(fmtp + 14);
++	if ((format != 1) || (channels < 1) || (channels > 2) ||
++			((bits != 8) && (bits != 16)) || (rate < 4000)) {
++		return;
++	}
++	nframes = datalen / (channels * (bits / 8));
++	if (nframes == 0) {
++		return;
++	}
++	/* sample-point offset in samples (the recorder's rule) */
++	off = (UINT)(((UINT32)cmt_sample_us * rate) / 1000000);
++	/* pass 1: count the rising edges (= the bit cells) */
++	count = 0;
++	prev = 0;
++	for (i = 0; i < nframes; i++) {
++		cur = cmt_wav_level(datap, i, channels, bits);
++		if ((cur != 0) && (prev == 0)) {
++			count++;
++		}
++		prev = cur;
++	}
++	if (count == 0) {
++		return;
++	}
++	cmt_bits = (UINT8 *)malloc((size_t)count);
++	if (cmt_bits == NULL) {
++		return;
++	}
++	cmt_nbits = count;
++	cmt_bits_cap = count;
++	/* pass 2: the bit is the level at the sample point */
++	idx = 0;
++	prev = 0;
++	for (i = 0; i < nframes; i++) {
++		cur = cmt_wav_level(datap, i, channels, bits);
++		if ((cur != 0) && (prev == 0)) {
++			UINT j;
++
++			j = i + off;
++			if (j >= nframes) {
++				j = nframes - 1;
++			}
++			cmt_bits[idx++] =
++				(UINT8)cmt_wav_level(datap, j,
++						channels, bits);
++		}
++		prev = cur;
++	}
++}
++
 +static void cmt_tape_load(void) {
 +
 +	const char *path;
@@ -136,6 +318,24 @@ index 306e3c8..8b780c5 100644
 +	fseek(fp, 0, SEEK_SET);
 +	if (size <= 0) {
 +		fclose(fp);
++		return;
++	}
++	if (cmt_path_is_wav(path)) {
++		UINT8 *buf;
++
++		buf = (UINT8 *)malloc((size_t)size);
++		if (buf == NULL) {
++			fclose(fp);
++			return;
++		}
++		if (fread(buf, 1, (size_t)size, fp) != (size_t)size) {
++			free(buf);
++			fclose(fp);
++			return;
++		}
++		fclose(fp);
++		cmt_wav_decode(buf, (UINT)size);
++		free(buf);
 +		return;
 +	}
 +	packed = (UINT8 *)malloc((size_t)size);
@@ -256,6 +456,104 @@ index 306e3c8..8b780c5 100644
 +	return(TRUE);
 +}
 +
++/* Canonical WAV rendering of the recorded bitstream
++ * (see the tape-interop patch note at cmt_wav_decode):
++ * 48000 Hz, 16-bit signed mono, high = +12000,
++ * low = -12000.  Phase sample counts use cumulative
++ * remainder carrying so the render is bit-identical to
++ * the host wavclean tool's output for the same bits. */
++static void cmt_wav_savefile(const char *path) {
++
++	FILE *fp;
++	UINT16 *samp;
++	UINT total;
++	UINT rem;
++	UINT i;
++	UINT n;
++	UINT dur;
++	UINT8 hdr[44];
++	UINT32 dsz;
++
++	/* pass 1: total sample count */
++	total = 0;
++	rem = 0;
++	for (i = 0; i < cmt_nbits; i++) {
++		dur = cmt_bits[i] ? cmt_hi1_us : cmt_hi0_us;
++		n = (dur * 48000 + rem) / 1000000;
++		rem = (dur * 48000 + rem) % 1000000;
++		total += n;
++		dur = cmt_bits[i] ? cmt_lo1_us : cmt_lo0_us;
++		n = (dur * 48000 + rem) / 1000000;
++		rem = (dur * 48000 + rem) % 1000000;
++		total += n;
++	}
++	samp = (UINT16 *)malloc((size_t)(total ? total : 1) *
++			sizeof(UINT16));
++	if (samp == NULL) {
++		return;
++	}
++	/* pass 2: fill */
++	n = 0;
++	rem = 0;
++	for (i = 0; i < cmt_nbits; i++) {
++		UINT k;
++		UINT cnt;
++
++		dur = cmt_bits[i] ? cmt_hi1_us : cmt_hi0_us;
++		cnt = (dur * 48000 + rem) / 1000000;
++		rem = (dur * 48000 + rem) % 1000000;
++		for (k = 0; k < cnt; k++) {
++			samp[n++] = (UINT16)12000;
++		}
++		dur = cmt_bits[i] ? cmt_lo1_us : cmt_lo0_us;
++		cnt = (dur * 48000 + rem) / 1000000;
++		rem = (dur * 48000 + rem) % 1000000;
++		for (k = 0; k < cnt; k++) {
++			samp[n++] = (UINT16)-12000;
++		}
++	}
++	dsz = (UINT32)total * 2;
++	memset(hdr, 0, sizeof(hdr));
++	memcpy(hdr, "RIFF", 4);
++	hdr[4] = (UINT8)((36 + dsz) & 0xff);
++	hdr[5] = (UINT8)(((36 + dsz) >> 8) & 0xff);
++	hdr[6] = (UINT8)(((36 + dsz) >> 16) & 0xff);
++	hdr[7] = (UINT8)(((36 + dsz) >> 24) & 0xff);
++	memcpy(hdr + 8, "WAVE", 4);
++	memcpy(hdr + 12, "fmt ", 4);
++	hdr[16] = 16;
++	hdr[20] = 1;			/* PCM */
++	hdr[22] = 1;			/* mono */
++	hdr[24] = (UINT8)(48000 & 0xff);
++	hdr[25] = (UINT8)((48000 >> 8) & 0xff);
++	hdr[26] = (UINT8)((48000 >> 16) & 0xff);
++	hdr[27] = (UINT8)((48000 >> 24) & 0xff);
++	hdr[28] = (UINT8)(96000 & 0xff);
++	hdr[29] = (UINT8)((96000 >> 8) & 0xff);
++	hdr[30] = (UINT8)((96000 >> 16) & 0xff);
++	hdr[31] = (UINT8)((96000 >> 24) & 0xff);
++	hdr[32] = 2;			/* block align */
++	hdr[34] = 16;			/* bits per sample */
++	memcpy(hdr + 36, "data", 4);
++	hdr[40] = (UINT8)(dsz & 0xff);
++	hdr[41] = (UINT8)((dsz >> 8) & 0xff);
++	hdr[42] = (UINT8)((dsz >> 16) & 0xff);
++	hdr[43] = (UINT8)((dsz >> 24) & 0xff);
++	fp = fopen(path, "wb");
++	if (fp != NULL) {
++		fwrite(hdr, 1, sizeof(hdr), fp);
++		for (i = 0; i < total; i++) {
++			UINT8 b[2];
++
++			b[0] = (UINT8)(samp[i] & 0xff);
++			b[1] = (UINT8)((samp[i] >> 8) & 0xff);
++			fwrite(b, 1, 2, fp);
++		}
++		fclose(fp);
++	}
++	free(samp);
++}
++
 +static void cmt_rec_savefile(void) {
 +
 +	const char *path;
@@ -269,6 +567,10 @@ index 306e3c8..8b780c5 100644
 +		path = getenv("XMIL_TAPE");
 +	}
 +	if ((path == NULL) || (path[0] == '\0')) {
++		return;
++	}
++	if (cmt_path_is_wav(path)) {
++		cmt_wav_savefile(path);
 +		return;
 +	}
 +	nbytes = (cmt_nbits + 7) / 8;
@@ -464,7 +766,7 @@ index 306e3c8..8b780c5 100644
  }
  
  REG8 cmt_ctrl_stat(void) {
-@@ -63,7 +476,11 @@ REG8 cmt_test(void) {
+@@ -63,7 +778,11 @@ REG8 cmt_test(void) {
  void cmt_reset(void) {
  
  	cmt.cmd = 0;
