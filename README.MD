@@ -59,6 +59,7 @@ make -C libretro        # -> libretro/x1_libretro.so（Linux の場合）
 RetroArch 側の操作（起動、ゲームフォーカスの ON/OFF、全画面、終了、ディスク交換）は
 `docs/retroarch-operations.md` に、起動や表示で困った時の対処は
 `docs/retroarch-troubleshooting.md` にまとめています。
+互換 IPL に内蔵されたマシン語モニタのコマンドは `docs/ipl-monitor.md` にあります。
 
 ## ライセンスとクレジット
 
