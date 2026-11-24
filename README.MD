@@ -24,8 +24,17 @@ libretro 版 X1 エミュレータコア**（xmil-libretro のフォーク）で
 - **EMM 1MB ＋ RAMDISK**（`io/memio.c`、`io/memio.h`、`io/iocore.c`）：24 ビット
   アドレスラッチ式 EMM のバックングストアを実装し、TapeOS の RAMDISK を載せました。
 - **キーボード対応の修正**（`libretro/sdlkbd.c`）。
+- **RS-232C ボード**（`io/usart.c`／`io/usart.h`、iocore に登録）。i8251
+  （USART）のレジスタモデルを I/O ページ 0x0C（0x0C00 = データ、
+  0x0C01 = コントロール／ステータス）に実装しました。モード／コマンド
+  ワードの状態機械、TxRDY／RxRDY／TxEMPTY の実チップ準拠のステータス、
+  名目ボーレート（ボードクロック 153.6kHz、×16 分周で 9600bps）に
+  基づく送信タイミングを持ちます。ホスト側は環境変数 `XMIL_SERIAL` で
+  指定したキャラクタデバイス（PTY 等）に橋渡しします。未設定時は
+  ボードだけが存在する状態（送信は名目速度で排出、受信なし）となり、
+  既存の動作は変わりません。
 
-差分の実体は `patches/xmil-libretro-3106aa5.patch`（6 ファイル、+807/−11）にも
+差分の実体は `patches/xmil-libretro-3106aa5.patch`（9 ファイル、+1181/−12）にも
 同梱しています。起動シーケンス（IPL の FDD→拡張 ROM→CMT の試行順）には手を入れていません。
 
 ## ビルド手順

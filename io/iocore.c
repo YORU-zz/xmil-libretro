@@ -187,7 +187,7 @@ static const INITFN initfn[] = {
 			ctc_reset,		dmac_reset,		fdc_reset,
 			memio_reset,	pcg_reset,		ppi_reset,
 			sio_reset,		sndboard_reset,	subcpu_reset,
-			vramio_reset};
+			usart_reset,	vramio_reset};
 
 
 /* ---- */
@@ -223,6 +223,12 @@ void iocore_reset(void) {
 	   TapeOS project; implementation in memio.c. */
 	iocore.f.inpfn[0x0d] = emm_i;
 	iocore.f.outfn[0x0d] = emm_o;
+	/* RS-232C board (i8251 USART) at ports 0x0c00-0x0c01:
+	   an expansion board (ep.75), so it is installed for
+	   every ROM type like the EMM. RS-232C patch, TapeOS
+	   project; implementation in usart.c. */
+	iocore.f.inpfn[0x0c] = usart_i;
+	iocore.f.outfn[0x0c] = usart_o;
 #if defined(SUPPORT_TURBOZ)
 	if (pccore.ROM_TYPE >= 3) {
 		iocore.f.inpfn[0x10] = palette_i;
