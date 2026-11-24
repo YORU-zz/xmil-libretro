@@ -1,11 +1,11 @@
-# パッチ版 xmil（TapeOS 用）— 暫定版 2026-11-24
+# パッチ版 xmil（TapeOS 用）— 暫定版 2026-11-25
 
 これは、OUROBO/ROS 再現プロジェクト（P2）の **TapeOS を動かすための、自作パッチを当てた
 libretro 版 X1 エミュレータコア**（xmil-libretro のフォーク）です。
 パッチはブランチ **`tapeos-patch-20261122`** にあります（基点は上流コミット
 `3106aa54ffb244cca4019a6e95dacaa698781bc3`）。
 
-> **暫定版の注記**：これは **暫定版 2026-11-24**（開発中スナップショット）です。
+> **暫定版の注記**：これは **暫定版 2026-11-25**（開発中スナップショット）です。
 > 開発中につき内容は変更されうるもので、正本リポジトリではありません。
 > マイルストーンごとに再生成される輸出形として公開しています。
 
@@ -54,7 +54,7 @@ make -C libretro        # -> libretro/x1_libretro.so（Linux の場合）
    meister68k 氏の X1 互換フォント配布／美咲フォント由来）を置いてください。
 3. **TapeOS 本体（ディスクイメージ）は本リポジトリには含まれません。**
    別リポジトリ **[YORU-zz/tapeos](https://github.com/YORU-zz/tapeos)** で配布します
-   （公開準備中）。そちらのイメージを本コアで起動すれば、TapeOS がそのまま起動します。
+   （暫定版を公開中です）。そちらのイメージを本コアで起動すれば、TapeOS がそのまま起動します。
 
 ## ライセンスとクレジット
 
@@ -66,7 +66,13 @@ make -C libretro        # -> libretro/x1_libretro.so（Linux の場合）
 
 ---
 
-Libretro port of X Millennium Sharp X1 emulator 
+## 上流の README（原文）
+
+以下は、上流 libretro ポートに付属していた README の原文です。帰属表示のため、
+内容を変更せずに残しています（当プロジェクトのパッチ内容や現在の配布状況とは
+関係ありません）。
+
+Libretro port of X Millennium Sharp X1 emulator
 
 
 svn: http://amethyst.yui.ne.jp/svn/x1/xmil/trunk/ 
