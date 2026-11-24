@@ -56,6 +56,10 @@ make -C libretro        # -> libretro/x1_libretro.so（Linux の場合）
    別リポジトリ **[YORU-zz/tapeos](https://github.com/YORU-zz/tapeos)** で配布します
    （暫定版を公開中です）。そちらのイメージを本コアで起動すれば、TapeOS がそのまま起動します。
 
+RetroArch 側の操作（起動、ゲームフォーカスの ON/OFF、全画面、終了、ディスク交換）は
+`docs/retroarch-operations.md` に、起動や表示で困った時の対処は
+`docs/retroarch-troubleshooting.md` にまとめています。
+
 ## ライセンスとクレジット
 
 - コア本体（xmil）：**Yui 氏 © 2015**、BSD 様式ライセンス（`LICENSE` 参照）。
